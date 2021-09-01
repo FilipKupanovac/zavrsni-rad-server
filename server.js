@@ -37,13 +37,15 @@ app.get('/cars/:id', (request,response) =>{
     .catch(err => response.status(400).json("Error - no matching car found"))
 })
 
-app.get('/previous-appointments/:id', (req,res) =>{
+//app.get('/previous-appointments/:id', (req,res) =>{
+app.get('/previous-appointments/:id/:pendreq', (req,res) =>{
     const {id} = req.params;
+    const pending_req=req.params.pendreq;
     
     database.select('*').from('cars')
     .join('appointments', 'appointments.serial_number','cars.serial_number')
     .select('*')
-    .where({owner_id:id})
+    .where({owner_id:id}) /* */.andWhere({pending_request: pending_req})
     .orderBy('scheduled_time')
     .then(data => {
         res.json(data)
@@ -63,7 +65,6 @@ app.get('/appointment-approvals/:id', (req,res) =>{
     let {id} = req.params;
     database.select('*').from('appointments')
         .where({mechanic:id}).andWhere('pending_request','=','Y')
-        //test
         .orderBy('scheduled_time')
     .then(data => res.json(data))
 })
@@ -73,6 +74,7 @@ app.get('/awaiting-diagnostics/:id', (req,res) =>{
     database.select('*').from('appointments')
         .where({mechanic:id}).andWhere('pending_request','=','N')
         .andWhere('pending','=','Y')
+        .orderBy('scheduled_time')
     .then(data => res.json(data))
 })
 //#endregion
