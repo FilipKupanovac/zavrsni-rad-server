@@ -119,7 +119,6 @@ app.post(`/request-schedule`, (request,response) =>{
 
     //PARSING DATE AND CORRECT CHOOSING
     date = new Date(date)
-    //test row
     date.setHours(4,0,0)
     let dateCheck = new Date();
     if(date < dateCheck)
@@ -175,7 +174,6 @@ app.put('/approve-appointment', (req,res)=>{
     let {appointment_number, date} = req.body;
     //PARSING DATE AND CORRECT CHOOSING
     date = new Date(date)
-    //test row
     date.setHours(4,0,0)
     let dateCheck = new Date();
     if(date < dateCheck)
@@ -224,12 +222,4 @@ app.delete('/reject-appointment/:id', (req,res) =>{
 })
 //#endregion
 
-/*
-/ --> res = this is working
-/signin --> POST = success/fail
-/register --> POST = user
-/profile/:userId --> GET = user
-/image --> PUT //jer već postoji user, ali se updatea stanje
-
-*/
 
