@@ -122,20 +122,15 @@ app.post(`/request-schedule`, (request,response) =>{
     //test row
     date.setHours(4,0,0)
     let dateCheck = new Date();
-    console.log("OLD DATE: ", date)
-    console.log("NOW: ", dateCheck)
     if(date < dateCheck)
     {
         date = dateCheck;
-        console.log("assigned to minimum")
     }
     else{
         dateCheck.setDate(dateCheck.getDate()+60)
         if(date > dateCheck){
             date = dateCheck;
-            console.log("assigned to maximum")
         }
-        else console.log("no date change")
     }
     date.setHours(6,0,0);
     //END OF DATE ASSIGNING
@@ -157,6 +152,23 @@ app.post(`/request-schedule`, (request,response) =>{
     .catch(err => {response.status(400).json("Bad Request. ", err)})
 })
 
+app.post(`/add-vehicle`, (req,res)=>{
+    const {drivetrain,horsepower,id,license,manufacturer,model,serial,year}=req.body;
+    database.insert({
+        drivetrain: drivetrain,
+        horsepower: horsepower,
+        owner_id: id,
+        license_plate: license,
+        manufacturer: manufacturer,
+        model: model,
+        serial_number: serial,
+        year: year
+    })
+    .into('cars')
+    .returning('*')
+    .then(data => res.json(data))
+    .catch(err => res.status(400).json(err))
+})
 //#endregion
 //#region put
 app.put('/approve-appointment', (req,res)=>{
@@ -166,20 +178,15 @@ app.put('/approve-appointment', (req,res)=>{
     //test row
     date.setHours(4,0,0)
     let dateCheck = new Date();
-    console.log("OLD DATE: ", date)
-    console.log("NOW: ", dateCheck)
     if(date < dateCheck)
     {
         date = dateCheck;
-        console.log("assigned to minimum")
     }
     else{
         dateCheck.setDate(dateCheck.getDate()+60)
         if(date > dateCheck){
             date = dateCheck;
-            console.log("assigned to maximum")
         }
-        else console.log("no date change")
     }
     date.setHours(6,0,0);
     //END OF DATE ASSIGNING
