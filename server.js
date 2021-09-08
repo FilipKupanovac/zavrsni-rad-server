@@ -6,9 +6,9 @@ const knex = require('knex');
 const database = knex({
     client: 'pg',
     connection: {
-        host: '127.0.0.1', //modify this, localhost=127.0.0.1
+        host: '127.0.0.1', 
         user: 'postgres',
-        password: 'Cersei11Alfa', //can be left blank while initializing
+        password: 'Cersei11Alfa', 
         database: 'zavrsni-rad-db'
     }
 });
@@ -37,15 +37,14 @@ app.get('/cars/:id', (request,response) =>{
     .catch(err => response.status(400).json("Error - no matching car found"))
 })
 
-//app.get('/previous-appointments/:id', (req,res) =>{
-app.get('/previous-appointments/:id/:pendreq', (req,res) =>{
+app.get('/previous-appointments/:id/:pendingreq', (req,res) =>{
     const {id} = req.params;
-    const pending_req=req.params.pendreq;
+    const pending_req=req.params.pendingreq;
     
     database.select('*').from('cars')
     .join('appointments', 'appointments.serial_number','cars.serial_number')
     .select('*')
-    .where({owner_id:id}) /* */.andWhere({pending_request: pending_req})
+    .where({owner_id:id}).andWhere({pending_request: pending_req})
     .orderBy('scheduled_time')
     .then(data => {
         res.json(data)
@@ -99,27 +98,27 @@ app.post('/signin', (request, response) => {
 })
 
 app.post('/register', (request, response) => {
-    const {email, name, password, vcode} = request.body;
-
-    database.insert({
-        password: password,
-        email: email,
-        name: name,
-        joined: new Date(),
-        type: (vcode === 'authorized' ? 'mech' : 'driv')
-    })
-    .into('users')
-    .returning('*')
-    .then( res => {
-        response.json(res[0])
-    })
-    .catch(err => response.status(400).json(err))
+    const {email, name, password, vcode, checkboxState} = request.body;
+    if(checkboxState === "true" && vcode !=="authorized")
+        response.status(400).json("Wrong mechanic validation code.")
+    else
+        database.insert({
+            password: password,
+            email: email,
+            name: name,
+            joined: new Date(),
+            type: (vcode === 'authorized' ? 'mech' : 'driv')
+        })
+        .into('users')
+        .returning('*')
+        .then( res => {
+            response.json(res[0])
+        })
+        .catch(err => response.status(400).json(err))
 })
 
 app.post(`/request-schedule`, (request,response) =>{
     let {mechanic,vehicle,date,note} = request.body;
-
-    //PARSING DATE AND CORRECT CHOOSING
     date = new Date(date)
     date.setHours(4,0,0)
     let dateCheck = new Date();
@@ -134,7 +133,6 @@ app.post(`/request-schedule`, (request,response) =>{
         }
     }
     date.setHours(6,0,0);
-    //END OF DATE ASSIGNING
 
     database.insert({
         scheduled_time: date,
@@ -174,7 +172,6 @@ app.post(`/add-vehicle`, (req,res)=>{
 //#region put
 app.put('/approve-appointment', (req,res)=>{
     let {appointment_number, date} = req.body;
-    //PARSING DATE AND CORRECT CHOOSING
     date = new Date(date)
     date.setHours(4,0,0)
     let dateCheck = new Date();
@@ -189,7 +186,7 @@ app.put('/approve-appointment', (req,res)=>{
         }
     }
     date.setHours(6,0,0);
-    //END OF DATE ASSIGNING
+
     database('appointments').where({appointment_number})
     .update({
         scheduled_time: date,
@@ -224,4 +221,6 @@ app.delete('/reject-appointment/:id', (req,res) =>{
 })
 //#endregion
 
+//#region development
 
+//#endregion
