@@ -37,6 +37,21 @@ app.get('/cars/:id', (request,response) =>{
     .catch(err => response.status(400).json("Error - no matching car found"))
 })
 
+app.get('/car/:vin', (request,response) =>{
+    const {vin} = request.params;
+    database.select('*').from('cars')
+        .where({serial_number: vin})
+    .then(cars =>{
+        if(cars.length){
+            response.json(cars[0])
+        }
+        else{
+            response.status(400).json("no matching car found")
+        }
+    })
+    .catch(err => response.status(400).json("Error - no matching car found"))
+})
+
 app.get('/previous-appointments/:id/:pendingreq', (req,res) =>{
     const {id} = req.params;
     const pending_req=req.params.pendingreq;
@@ -75,6 +90,28 @@ app.get('/awaiting-diagnostics/:id', (req,res) =>{
         .andWhere('pending','=','Y')
         .orderBy('scheduled_time')
     .then(data => res.json(data))
+})
+
+app.get('/diagnostics-inprogress/:id', (req,res) =>{
+    let {id} = req.params;
+    database.select('*').from('appointments')
+        .where({mechanic:id}).andWhere('pending_request','=','N')
+        .andWhere('pending','=','N')
+        .orderBy('scheduled_time')
+    .then(data => res.json(data))
+})
+
+app.get('/diagnostic-code/:code', (req,res) =>{
+    let {code} = req.params;
+    database.select('*').from('diagnostic_codes')
+        .whereRaw(`lower(code) like lower('%${code}%')`)
+    .then(data =>{
+        if(data.length){
+            res.json(data[0])
+        }
+        else
+            res.status(404).json("Code not found")
+    })
 })
 //#endregion
 
@@ -141,7 +178,8 @@ app.post(`/request-schedule`, (request,response) =>{
         serial_number : vehicle,
         note: note!==undefined ? (note!==""? note: null): null,
         pending: 'Y',
-        pending_request: 'Y'
+        pending_request: 'Y',
+        resolved: 'N'
     })
     .into('appointments')
     .returning('*')
@@ -195,6 +233,26 @@ app.put('/approve-appointment', (req,res)=>{
     .returning('*')
     .then(data => res.json(data))
     .catch(err => res.status(400).json(err))
+})
+app.put(`/resolve-diagnostic`, (req,res) =>{
+    let {appointment_number, code} = req.body;
+    //test
+    let servicePart;
+    switch(code){
+        case "P0000": servicePart="none"; break;
+        case "P0003": servicePart="Fuel pump"; break;
+        case "P0148": servicePart="Fuel pump"; break;
+        case "P02A1": servicePart="Injector nozzle"; break;
+        case "P070F": servicePart="Transmission fluid"; break;
+        case "C0760": servicePart="Tyre pressure sesor"; break;
+        case "C0127": servicePart="Brake fluid"; break;
+        case "B0020": servicePart="Airbag control unit"; break;
+    }
+    //test
+    database('appointments').where('appointment_number','=', appointment_number)
+    .update({pending: 'N', code: code, service_part: servicePart})
+    .returning('*')
+    .then(data => res.json(data))
 })
 //#endregion
 app.put('/image', (req, res) => {
