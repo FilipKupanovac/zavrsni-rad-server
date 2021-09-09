@@ -97,6 +97,16 @@ app.get('/diagnostics-inprogress/:id', (req,res) =>{
     database.select('*').from('appointments')
         .where({mechanic:id}).andWhere('pending_request','=','N')
         .andWhere('pending','=','N')
+        //test row
+        .andWhere('made_order', '=','N').andWhere('resolved','=','N')
+        .orderBy('scheduled_time')
+    .then(data => res.json(data))
+})
+
+app.get('/resolved-appointments/:id', (req,res) =>{
+    let {id} = req.params;
+    database.select('*').from('appointments')
+        .where('resolved','=','Y')
         .orderBy('scheduled_time')
     .then(data => res.json(data))
 })
@@ -112,6 +122,14 @@ app.get('/diagnostic-code/:code', (req,res) =>{
         else
             res.status(404).json("Code not found")
     })
+})
+
+app.get('/parts/:servicepart', (req,res) =>{
+    let servicePart = req.params.servicepart;
+    database.select('*').from('spare_parts')
+        .where({service_part : servicePart})
+    .then(data => res.json(data))
+    .catch(err => res.json(err))
 })
 //#endregion
 
@@ -236,7 +254,6 @@ app.put('/approve-appointment', (req,res)=>{
 })
 app.put(`/resolve-diagnostic`, (req,res) =>{
     let {appointment_number, code} = req.body;
-    //test
     let servicePart;
     switch(code){
         case "P0000": servicePart="none"; break;
@@ -244,27 +261,25 @@ app.put(`/resolve-diagnostic`, (req,res) =>{
         case "P0148": servicePart="Fuel pump"; break;
         case "P02A1": servicePart="Injector nozzle"; break;
         case "P070F": servicePart="Transmission fluid"; break;
-        case "C0760": servicePart="Tyre pressure sesor"; break;
+        case "C0760": servicePart="Tyre pressure sensor"; break;
         case "C0127": servicePart="Brake fluid"; break;
         case "B0020": servicePart="Airbag control unit"; break;
     }
-    //test
+    
     database('appointments').where('appointment_number','=', appointment_number)
     .update({pending: 'N', code: code, service_part: servicePart})
     .returning('*')
     .then(data => res.json(data))
 })
-//#endregion
-app.put('/image', (req, res) => {
-    const {id} = req.body;
-    database('users').where('id', '=', id)
-    .increment('entries', 1)
-    .returning('entries')
-    .then(entries => {
-        res.json(entries[0])
-    })
-    .catch(err=> res.status(400).json('unable to get entries'))
+
+app.put(`/end-service`, (req,res) =>{
+    let {appointment_number} = req.body;
+    database('appointments').where('appointment_number','=',appointment_number)
+        .update({resolved: 'Y'})
+    .returning('*')
+    .then(data => res.json(data[0]))
 })
+//#endregion
 
 app.listen(3000, () => {
     console.log("App is running on port 3000.\nlistening...")
