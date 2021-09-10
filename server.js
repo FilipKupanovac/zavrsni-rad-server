@@ -98,7 +98,7 @@ app.get('/diagnostics-inprogress/:id', (req,res) =>{
         .where({mechanic:id}).andWhere('pending_request','=','N')
         .andWhere('pending','=','N')
         //test row
-        .andWhere('made_order', '=','N').andWhere('resolved','=','N')
+        /* .andWhere('made_order', '=','N') */.andWhere('resolved','=','N')
         .orderBy('scheduled_time')
     .then(data => res.json(data))
 })
@@ -106,6 +106,8 @@ app.get('/diagnostics-inprogress/:id', (req,res) =>{
 app.get('/resolved-appointments/:id', (req,res) =>{
     let {id} = req.params;
     database.select('*').from('appointments')
+        .join('cars','cars.serial_number','appointments.serial_number')
+        .join('diagnostic_codes','diagnostic_codes.code','appointments.code')
         .where('resolved','=','Y')
         .orderBy('scheduled_time')
     .then(data => res.json(data))
@@ -114,7 +116,7 @@ app.get('/resolved-appointments/:id', (req,res) =>{
 app.get('/diagnostic-code/:code', (req,res) =>{
     let {code} = req.params;
     database.select('*').from('diagnostic_codes')
-        .whereRaw(`lower(code) like lower('%${code}%')`)
+        .whereRaw(`lower(code) like lower('${code}')`)
     .then(data =>{
         if(data.length){
             res.json(data[0])
@@ -130,6 +132,13 @@ app.get('/parts/:servicepart', (req,res) =>{
         .where({service_part : servicePart})
     .then(data => res.json(data))
     .catch(err => res.json(err))
+})
+
+app.get(`/get-part-ean/:ean`,(req,res) =>{
+    let {ean} = req.params;
+    database.select('*').from('spare_parts')
+        .where('ean','=', ean)
+    .then(data => res.json(data[0]))
 })
 //#endregion
 
@@ -256,7 +265,7 @@ app.put(`/resolve-diagnostic`, (req,res) =>{
     let {appointment_number, code} = req.body;
     let servicePart;
     switch(code){
-        case "P0000": servicePart="none"; break;
+        case "P0000": servicePart=null; break;
         case "P0003": servicePart="Fuel pump"; break;
         case "P0148": servicePart="Fuel pump"; break;
         case "P02A1": servicePart="Injector nozzle"; break;
@@ -273,10 +282,18 @@ app.put(`/resolve-diagnostic`, (req,res) =>{
 })
 
 app.put(`/end-service`, (req,res) =>{
-    let {appointment_number} = req.body;
+    let {appointment_number, service_note} = req.body;
     database('appointments').where('appointment_number','=',appointment_number)
-        .update({resolved: 'Y'})
+        .update({resolved: 'Y', service_note: service_note})
     .returning('*')
+    .then(data => res.json(data[0]))
+})
+
+app.put(`/order-part`,(req,res)=>{
+    let {appointment_number, ean} = req.body;
+    database('appointments').where('appointment_number','=',appointment_number)
+        .update({made_order : 'Y', ean: ean})
+        .returning('*')
     .then(data => res.json(data[0]))
 })
 //#endregion
