@@ -60,11 +60,27 @@ app.get('/previous-appointments/:id/:pendingreq', (req,res) =>{
     .join('appointments', 'appointments.serial_number','cars.serial_number')
     .select('*')
     .where({owner_id:id}).andWhere({pending_request: pending_req})
+    .andWhere({pending:'Y', made_order: 'N',resolved: 'N'})
     .orderBy('scheduled_time')
     .then(data => {
         res.json(data)
     })
     .catch(err=> res.status(400).json(err))
+})
+app.get(`/appointments-inprogress/:id`,(req,res) =>{
+    const{id} = req.params;
+
+    database.select('*').from('appointments')
+        .join('cars','appointments.serial_number','cars.serial_number')
+        .join('diagnostic_codes','diagnostic_codes.code','appointments.code')
+        .select('*')
+        .where({owner_id: id}).andWhere('appointments.code','!=','null')
+        .andWhere({resolved: 'N',pending:'N',pending_request:'N'})
+        .orderBy('scheduled_time')
+    .then(data=>{
+        res.json(data)
+    })
+    .catch(err => res.status(400).json(err))
 })
 
 app.get('/mechanics/:input', (req,res) => {
@@ -126,19 +142,32 @@ app.get('/diagnostic-code/:code', (req,res) =>{
     })
 })
 
-app.get('/parts/:servicepart', (req,res) =>{
+app.get('/parts/:servicepart/:brand', (req,res) =>{
     let servicePart = req.params.servicepart;
+    let brand = req.params.brand;
     database.select('*').from('spare_parts')
         .where({service_part : servicePart})
+        .andWhereRaw(`lower(compatible_with) like lower('%${brand}%')`)
     .then(data => res.json(data))
     .catch(err => res.json(err))
 })
+
 
 app.get(`/get-part-ean/:ean`,(req,res) =>{
     let {ean} = req.params;
     database.select('*').from('spare_parts')
         .where('ean','=', ean)
     .then(data => res.json(data[0]))
+})
+
+app.get(`/resolved-driver/:id`, (req,res)=>{
+    let {id} = req.params;
+    database.select('*').from('cars')
+        .join('appointments','appointments.serial_number','cars.serial_number')
+        .join('diagnostic_codes','diagnostic_codes.code','appointments.code')
+        .join('users','appointments.mechanic','users.id')
+        .where('cars.owner_id','=', id).andWhere({resolved:'Y'})
+    .then(data => res.json(data))
 })
 //#endregion
 
@@ -200,20 +229,20 @@ app.post(`/request-schedule`, (request,response) =>{
 
     database.insert({
         scheduled_time: date,
-        is_diagnostic : 'Y',
         mechanic : mechanic,
         serial_number : vehicle,
         note: note!==undefined ? (note!==""? note: null): null,
         pending: 'Y',
         pending_request: 'Y',
-        resolved: 'N'
+        resolved: 'N',
+        made_order: 'N'
     })
     .into('appointments')
     .returning('*')
     .then(res =>{
         response.json(res)
     })
-    .catch(err => {response.status(400).json("Bad Request. ", err)})
+    .catch(err => {response.status(400).json(err)})
 })
 
 app.post(`/add-vehicle`, (req,res)=>{
